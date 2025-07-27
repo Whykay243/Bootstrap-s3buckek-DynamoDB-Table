@@ -28,7 +28,7 @@ resource "aws_dynamodb_table" "table" {
   name         = var.dynamodb_table_name
   billing_mode = "PROVISIONED"
 
-  hash_key     = "id"
+  hash_key = "id"
 
   attribute {
     name = "id"
