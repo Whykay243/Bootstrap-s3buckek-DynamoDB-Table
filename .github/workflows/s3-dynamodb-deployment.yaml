@@ -6,21 +6,21 @@ on:
       - main
       - master
 
-permissions:                # ✅ Required for OIDC
-  id-token: write           # 🔐 Enables GitHub to request the OIDC token
-  contents: read            # 📁 Needed to checkout the code
+permissions:
+  id-token: write
+  contents: read
 
 env:
   AWS_REGION: us-east-1
 
 jobs:
   bootstrap:
-    name: Bootstrap S3 Backend
+    name: Bootstrap S3 and DynamoDB
     runs-on: ubuntu-latest
 
     defaults:
       run:
-        working-directory: Bootstrap-infrastructure  # 🔧 Adjust if needed
+        working-directory: Bootstrap-infrastructure
 
     steps:
       - name: Checkout repository
@@ -34,7 +34,7 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::293926504711:role/Githubaction-aws-assumerole  # Replace with your role ARN
+          role-to-assume: arn:aws:iam::293926504711:role/Githubaction-aws-assumerole
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Format Check
@@ -46,17 +46,6 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Check and import existing DynamoDB table if present
-        run: |
-          if aws dynamodb describe-table --table-name whykay-bootstrap-dynamodb-table >/dev/null 2>&1; then
-            echo "DynamoDB table exists. Importing..."
-            terraform import -var-file="backend.tfvars" aws_dynamodb_table.table whykay-bootstrap-dynamodb-table
-          else
-            echo "DynamoDB table does not exist. Proceeding to create it with Terraform."
-          fi
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-
       - name: Debug backend.tfvars presence
         run: |
           echo "Files in working directory:"
@@ -64,17 +53,25 @@ jobs:
           echo "Contents of backend.tfvars:"
           cat backend.tfvars
 
-      - name: Check if S3 bucket exists and import if yes
+      - name: Check and import existing DynamoDB table if present
         run: |
-          BUCKET_NAME="whykay-bootstrap-bucket-1234"  # Replace with your actual bucket name or variable
-          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-            echo "S3 bucket exists. Importing to Terraform state."
-            terraform import aws_s3_bucket.bucket "$BUCKET_NAME"
+          TABLE_NAME=$(awk -F' *= *' '/dynamodb_table_name/ {gsub(/"/, "", $2); print $2}' backend.tfvars)
+          if aws dynamodb describe-table --table-name "$TABLE_NAME" >/dev/null 2>&1; then
+            echo "DynamoDB table exists. Importing..."
+            terraform import -var-file="backend.tfvars" aws_dynamodb_table.table "$TABLE_NAME"
           else
-            echo "S3 bucket does not exist. Terraform will create it."
+            echo "DynamoDB table does not exist. Will be created by Terraform."
           fi
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
+
+      - name: Check and import existing S3 bucket if present
+        run: |
+          BUCKET_NAME=$(awk -F' *= *' '/bucket_name/ {gsub(/"/, "", $2); print $2}' backend.tfvars)
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "S3 bucket exists. Importing..."
+            terraform import -var-file="backend.tfvars" aws_s3_bucket.bucket "$BUCKET_NAME"
+          else
+            echo "S3 bucket does not exist. Will be created by Terraform."
+          fi
 
       - name: Terraform Plan
         run: terraform plan -var-file="backend.tfvars"
