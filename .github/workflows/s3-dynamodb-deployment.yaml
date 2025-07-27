@@ -1,0 +1,67 @@
+name: Terraform Backend Bootstrap
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  AWS_REGION: us-east-1  # Default region if not passed via Secrets
+
+jobs:
+  bootstrap:
+    name: Bootstrap S3 Backend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Bootstrap-infrastructure    # change to you Infrastructure directory
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::293926504711:role/Githubaction-aws-assumerole       # Replace with your role ARN
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Check and import existing DynamoDB table if present
+        run: |
+          if aws dynamodb describe-table --table-name terraform-locks >/dev/null 2>&1; then
+            echo "DynamoDB table terraform-locks exists. Importing into Terraform state."
+            terraform import -var-file="backend.tfvars" aws_dynamodb_table.terraform_locks terraform-locks
+          else
+            echo "DynamoDB table terraform-locks does not exist. Terraform will create it."
+          fi
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+
+      - name: Debug backend.tfvars presence
+        run: |
+          echo "Files in working directory:"
+          ls -la
+          echo "Contents of backend.tfvars:"
+          cat backend.tfvars
+
+      - name: Terraform Plan
+        run: terraform plan -var-file="backend.tfvars"
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var-file="backend.tfvars"
