@@ -6,8 +6,12 @@ on:
       - main
       - master
 
+permissions:                # ✅ Needed for OIDC!
+  id-token: write           # 🔐 Enables role assumption
+  contents: read            # 📁 Allows repo checkout
+
 env:
-  AWS_REGION: us-east-1  # Default region if not passed via Secrets
+  AWS_REGION: us-east-1
 
 jobs:
   bootstrap:
@@ -16,7 +20,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Bootstrap-infrastructure    # change to you Infrastructure directory
+        working-directory: Bootstrap-infrastructure  # 🔧 Adjust if needed
 
     steps:
       - name: Checkout repository
@@ -30,7 +34,7 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::293926504711:role/Githubaction-aws-assumerole       # Replace with your role ARN
+          role-to-assume: arn:aws:iam::293926504711:role/Githubaction-aws-assumerole
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Format Check
