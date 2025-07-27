@@ -6,9 +6,9 @@ on:
       - main
       - master
 
-permissions:                # ✅ Needed for OIDC!
-  id-token: write           # 🔐 Enables role assumption
-  contents: read            # 📁 Allows repo checkout
+permissions:                # ✅ Required for OIDC
+  id-token: write           # 🔐 Enables GitHub to request the OIDC token
+  contents: read            # 📁 Needed to checkout the code
 
 env:
   AWS_REGION: us-east-1
@@ -48,11 +48,11 @@ jobs:
 
       - name: Check and import existing DynamoDB table if present
         run: |
-          if aws dynamodb describe-table --table-name terraform-locks >/dev/null 2>&1; then
-            echo "DynamoDB table terraform-locks exists. Importing into Terraform state."
-            terraform import -var-file="backend.tfvars" aws_dynamodb_table.terraform_locks terraform-locks
+          if aws dynamodb describe-table --table-name whykay-bootstrap-dynamodb-table >/dev/null 2>&1; then
+            echo "DynamoDB table exists. Importing..."
+            terraform import -var-file="backend.tfvars" aws_dynamodb_table.table whykay-bootstrap-dynamodb-table
           else
-            echo "DynamoDB table terraform-locks does not exist. Terraform will create it."
+            echo "DynamoDB table does not exist. Proceeding to create it with Terraform."
           fi
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
