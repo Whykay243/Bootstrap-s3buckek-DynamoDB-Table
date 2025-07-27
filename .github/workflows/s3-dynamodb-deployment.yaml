@@ -34,7 +34,7 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::293926504711:role/Githubaction-aws-assumerole
+          role-to-assume: arn:aws:iam::293926504711:role/Githubaction-aws-assumerole  # Replace with your role ARN
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Format Check
@@ -66,11 +66,12 @@ jobs:
 
       - name: Check if S3 bucket exists and import if yes
         run: |
-          if aws s3api head-bucket --bucket your-bucket-name 2>/dev/null; then
+          BUCKET_NAME="whykay-bootstrap-bucket-1234"  # Replace with your actual bucket name or variable
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
             echo "S3 bucket exists. Importing to Terraform state."
-            terraform import aws_s3_bucket.bucket your-bucket-name
+            terraform import aws_s3_bucket.bucket "$BUCKET_NAME"
           else
-            echo "S3 bucket does not exist. Will be created by Terraform."
+            echo "S3 bucket does not exist. Terraform will create it."
           fi
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
