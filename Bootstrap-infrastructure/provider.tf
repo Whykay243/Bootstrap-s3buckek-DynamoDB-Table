@@ -9,6 +9,5 @@ terraform {
 }
 
 provider "aws" {
-  profile = "whykay"
   region  = var.aws_region
 }
