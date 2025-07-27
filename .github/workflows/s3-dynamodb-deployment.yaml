@@ -64,6 +64,17 @@ jobs:
           echo "Contents of backend.tfvars:"
           cat backend.tfvars
 
+      - name: Check if S3 bucket exists and import if yes
+        run: |
+          if aws s3api head-bucket --bucket your-bucket-name 2>/dev/null; then
+            echo "S3 bucket exists. Importing to Terraform state."
+            terraform import aws_s3_bucket.bucket your-bucket-name
+          else
+            echo "S3 bucket does not exist. Will be created by Terraform."
+          fi
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+
       - name: Terraform Plan
         run: terraform plan -var-file="backend.tfvars"
 
